@@ -1,0 +1,81 @@
+---
+title: "Machine Learning Course"
+author: "Jiacheng Lou"
+date: "1/14/2020"
+output: html_document
+---
+##Course Project
+The goal of your project is to predict the manner in which they did the exercise. This is the “classe” variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+##Course Project Prediction Quiz Portion
+Apply your machine learning algorithm to the 20 test cases available in the test data above and submit your predictions in appropriate format to the Course Project Prediction Quiz for automated grading.
+
+##Data
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+## Codes
+
+### preparing data and tools
+```{r}
+
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(rattle)
+training<- read.csv("pml-training.csv", na.strings = c("NA", ""))
+testing <-read.csv("pml-testing.csv", na.strings = c("NA", ""))
+
+```
+
+### Clean data
+
+```{r}
+# Remove columns with Near Zero Values
+subTrain <-training[, names(training)[!(nzv(training, saveMetrics = T)[, 4])]]
+
+# Remove columns with NA or is empty
+subTrain <-subTrain[, names(subTrain)[sapply(subTrain, function (x)! (any(is.na(x) | x == "")))]]
+subTrain <- subTrain[,-1]
+subTrain <- subTrain[, c(1:3, 5:58)]
+
+```
+
+### Split the data for Cross Validation
+
+```{r}
+# Divide the training data into a training set and a validation set
+inTrain <- createDataPartition(subTrain$classe, p = 0.7, list = FALSE)
+subTraining <- subTrain[inTrain,]
+subValidation <- subTrain[-inTrain,]
+```
+
+### Building model
+
+```{r}
+tc <- trainControl(method = "cv", 3)
+modFitP <- train(classe ~., method = "rf", data = subTraining, trControl = tc, allowParallel=TRUE, importance=TRUE, ntree = 250 )
+modFitP 
+
+prdval <- predict(modFitP, subValidation)
+confusionMatrix(subValidation$classe, prdval)
+
+accuracy <- postResample(prdval, subValidation$classe)
+outsamperr <- 1 - as.numeric(confusionMatrix(subValidation$classe, prdval)$overall[1])
+print(accuracy)
+print(outsamperr)
+
+```
+
+
+### Apply to testset
+```{r}
+testsetpredict <- predict(modFitP, testing)
+testsetpredict
+```
+
+
